@@ -82,10 +82,10 @@ def process_new_data(raw):
 
     # применение фильтров
     buffer_raw.notch_filter(freqs=50, notch_widths=1)
-    buffer_raw.filter(l_freq=0.5, h_freq=None)
-    # buffer_raw.filter(l_freq=0.5, h_freq=30)
-    buffer_raw.set_eeg_reference(ref_channels='average', projection=True)
-    buffer_raw.apply_proj()  # средняя референтная проекция
+    # buffer_raw.filter(l_freq=0.5, h_freq=None)
+    buffer_raw.filter(l_freq=0.5, h_freq=30)
+    # buffer_raw.set_eeg_reference(ref_channels='average', projection=True)
+    # buffer_raw.apply_proj()  # средняя референтная проекция
 
     #----------------Доп фильтры-----------------
 
@@ -114,6 +114,7 @@ def process_new_data(raw):
     #     fit_params={"extended": True, "ortho": False},
     #     random_state=1
     # )
+    # 
     #
     # ica.fit(buffer_raw)
     #
@@ -128,10 +129,10 @@ def process_new_data(raw):
     data = buffer_raw.get_data()
 
     # FFT
-    fft_values = np.fft.fft(data, axis=1)
-    freqs = np.fft.fftfreq(data.shape[1], d=1 / raw.info['sfreq'])
-    # частоты
-    psd = np.abs(fft_values) ** 2
+    # fft_values = np.fft.fft(data, axis=1)
+    # freqs = np.fft.fftfreq(data.shape[1], d=1 / raw.info['sfreq'])
+    # # частоты
+    # psd = np.abs(fft_values) ** 2
 
     # multitaper
     # psds, freqs = psd_array_multitaper(data, sfreq=raw.info['sfreq'], fmin=0.5, fmax=50, bandwidth=4.0, verbose=False)
@@ -139,7 +140,7 @@ def process_new_data(raw):
     # psds = psds.mean(axis=0)
 
     # Welch
-    # freqs, psds = welch(data, fs=raw.info['sfreq'], nperseg=4 * raw.info['sfreq'])
+    freqs, psds = welch(data, fs=raw.info['sfreq'], nperseg=4 * raw.info['sfreq'])
 
     waves = {'delta': (0.5, 4),
              'theta': (4, 8),
@@ -152,13 +153,13 @@ def process_new_data(raw):
     max_power = 0
 
     #для FFT
-    for band, (low, high) in waves.items():
-        band_ix = (freqs >= low) & (freqs < high)
-        power = np.mean(psd[:, band_ix], axis=1)
-        power_values[band] = power
-        if np.any(power > max_power):
-            max_power = power
-            max_power_band = band
+    # for band, (low, high) in waves.items():
+    #     band_ix = (freqs >= low) & (freqs < high)
+    #     power = np.mean(psd[:, band_ix], axis=1)
+    #     power_values[band] = power
+    #     if np.any(power > max_power):
+    #         max_power = power
+    #         max_power_band = band
 
     #для multitaper
     # for band, (low, high) in waves.items():
@@ -170,13 +171,13 @@ def process_new_data(raw):
     #         max_power_band = band
 
     #для Welch'a
-    # for band, (low, high) in waves.items():
-    #     band_ix = np.logical_and(freqs >= low, freqs < high)
-    #     power = psds[:, band_ix].mean(axis=1)
-    #     power_values[band] = power
-    #     if np.any(power > max_power):
-    #         max_power = power
-    #         max_power_band = band
+    for band, (low, high) in waves.items():
+        band_ix = np.logical_and(freqs >= low, freqs < high)
+        power = psds[:, band_ix].mean(axis=1)
+        power_values[band] = power
+        if np.any(power > max_power):
+            max_power = power
+            max_power_band = band
 
     # среднее скользящее окно для Welcha'a
     # if "power_cache" not in CACHE:
@@ -199,7 +200,7 @@ def process_new_data(raw):
     #     if np.any(power_values[band] > max_power):
     #         max_power = power_values[band]
     #         max_power_band = band
-
+    #
     print("--------------")
     for band, power in power_values.items():
         print(f"{band}: {np.mean(power)}")
@@ -241,6 +242,11 @@ if MODE == "RUNNING":
     #здесь приходит 140 каналов, но надо вырезать 4 канала
     INPUT["EEG In"]=INPUT["EEG In"][:136]
     raw_data = INPUT["EEG In"]
+
+    # надо вырезать 21 канала
+    # INPUT["EEG In"] = INPUT["EEG In"][:21]
+    # raw_data = INPUT["EEG In"]
+
     raw = mne.io.RawArray(raw_data, info)
 
     #OUTPUT["Brain Waves"]=process_new_data(raw)
